@@ -1,0 +1,15 @@
+[Unit]
+Description=pyeaton - UPS Companion (Python)
+After=network.target
+
+[Service]
+Type=simple
+# USB mode needs root (to detach hid-generic); sim mode does not.
+ExecStart=/usr/bin/python3 -m pyeaton.app --usb --config /etc/pyeaton/config.json
+Restart=on-failure
+RestartSec=3
+# Let the shutdown policy actually power off the host when it fires:
+# add --execute --shutdown-type shutdown  (or set them in the config file)
+
+[Install]
+WantedBy=multi-user.target

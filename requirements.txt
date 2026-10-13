@@ -1,0 +1,3 @@
+# Core (simulator + dashboard + API) needs NOTHING beyond the Python stdlib.
+# Only the real-hardware USB driver needs these:
+pyusb>=1.2 ; extra == "usb"

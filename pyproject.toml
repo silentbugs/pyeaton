@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pyeaton"
+version = "0.1.0"
+description = "Clean-room Python reimplementation of Eaton UPS Companion (reverse-engineered from mc2.exe)"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+dependencies = ["hidapi (>=0.15.0,<0.16.0)", "pyusb (>=1.3.1,<2.0.0)"]  # core (sim + dashboard + API + NUT) is stdlib-only
+
+[project.optional-dependencies]
+usb = ["pyusb>=1.2"]
+dev = ["pytest>=7"]
+
+[project.scripts]
+pyeaton = "pyeaton.app:main"
+
+[tool.setuptools]
+packages = ["pyeaton"]
+
+[tool.setuptools.package-data]
+pyeaton = ["../web/*.html", "../vendor/libusb0-x64/*"]

@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UPS Companion</title>
+<style>
+  :root{
+    --bg:#f4f6f8;--card:#fff;--ink:#1b2733;--muted:#6b7b8c;--line:#e3e8ee;
+    --ok:#1a9e5f;--warn:#d98a00;--crit:#d23b3b;--info:#2d7dd2;--accent:#0a66c2;
+  }
+  @media (prefers-color-scheme:dark){:root:not([data-theme=light]){
+    --bg:#0f1620;--card:#17212e;--ink:#e7edf4;--muted:#93a4b6;--line:#243244;
+  }}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;padding-block:26px;padding-inline:16px}
+  .wrap{max-width:900px;margin:0 auto}
+  h1{font-size:20px;margin:0 0 2px}.sub{color:var(--muted);font-size:13px;margin:0 0 18px}
+  .tabs{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:16px;border-bottom:1px solid var(--line)}
+  .tabs button{font:inherit;border:0;background:none;color:var(--muted);padding:9px 14px;cursor:pointer;border-bottom:2px solid transparent}
+  .tabs button.on{color:var(--accent);border-bottom-color:var(--accent)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+  .card h2{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 8px}
+  .big{font-size:30px;font-weight:650}.unit{font-size:14px;color:var(--muted);font-weight:400}
+  .banner{display:flex;align-items:center;gap:12px;border-radius:12px;padding:14px 16px;margin-bottom:16px;border:1px solid var(--line);background:var(--card)}
+  .dot{width:12px;height:12px;border-radius:50%;flex:none;background:var(--muted)}
+  .s-normal .dot,.s-info .dot{background:var(--ok)}.s-warning .dot{background:var(--warn)}
+  .s-critical .dot,.s-comlost .dot{background:var(--crit)}
+  .bar{height:12px;border-radius:7px;background:var(--line);overflow:hidden;margin-top:6px}
+  .bar>i{display:block;height:100%;background:var(--ok);transition:width .4s}
+  .bar.low>i{background:var(--warn)}.bar.crit>i{background:var(--crit)}
+  button.btn{font:inherit;border:1px solid var(--line);background:var(--card);color:var(--ink);padding:9px 14px;border-radius:9px;cursor:pointer}
+  button.primary{background:var(--accent);color:#fff;border-color:transparent}
+  .controls{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  td,th{padding:6px;border-top:1px solid var(--line);text-align:left}
+  td.v{text-align:right;font-variant-numeric:tabular-nums}
+  .lvl{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:7px}
+  .lvl0,.lvl1{background:var(--ok)}.lvl2{background:var(--warn)}.lvl3,.lvl4{background:var(--crit)}
+  label{display:block;font-size:13px;color:var(--muted);margin:10px 0 3px}
+  input,select{font:inherit;width:100%;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .hidden{display:none}.foot{color:var(--muted);font-size:12px;margin-top:18px}
+  .pill{font-size:11px;padding:2px 7px;border:1px solid var(--line);border-radius:999px;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1 id="product">UPS Companion</h1>
+  <p class="sub">Python reimplementation · reverse-engineered from mc2.exe <span id="nutpill" class="pill hidden">NUT on</span></p>
+
+  <div id="banner" class="banner s-normal"><span class="dot"></span><strong id="state">Connecting…</strong><span id="statedesc" class="sub" style="margin:0"></span></div>
+  <div id="replace" class="banner s-critical" style="display:none"><span class="dot"></span><strong>Replace battery</strong><span class="sub" style="margin:0">— the UPS reports its battery as end-of-life</span></div>
+
+  <div class="tabs">
+    <button data-t="summary" class="on">Summary</button>
+    <button data-t="measures">Measures</button>
+    <button data-t="energy">Energy</button>
+    <button data-t="controls">Controls</button>
+    <button data-t="events">Events</button>
+    <button data-t="settings">Settings</button>
+  </div>
+
+  <section data-tab="summary">
+    <div class="grid">
+      <div class="card"><h2>Battery charge</h2><div class="big"><span id="cap">–</span><span class="unit">%</span></div><div class="bar" id="capbar"><i style="width:0"></i></div></div>
+      <div class="card"><h2>Runtime left</h2><div class="big"><span id="rtte">–</span></div></div>
+      <div class="card"><h2>Load</h2><div class="big"><span id="load">–</span><span class="unit">%</span></div></div>
+      <div class="card"><h2>Input voltage</h2><div class="big"><span id="volt">–</span><span class="unit">V</span></div></div>
+      <div class="card" id="tempcard" style="display:none"><h2>Temperature</h2><div class="big"><span id="temp">–</span><span class="unit">°C</span></div></div>
+    </div>
+    <div class="card" style="margin-top:14px"><h2>Battery health</h2>
+      <table><tbody>
+        <tr><td class="k">Charge</td><td class="v"><span id="bh_cap">–</span>%</td></tr>
+        <tr><td class="k">Full-charge capacity</td><td class="v"><span id="bh_fcc">–</span>%</td></tr>
+        <tr><td class="k">Design capacity</td><td class="v"><span id="bh_dc">–</span>%</td></tr>
+        <tr><td class="k">Runtime to empty</td><td class="v" id="bh_rt">–</td></tr>
+        <tr><td class="k">Battery voltage</td><td class="v"><span id="bh_v">–</span> V</td></tr>
+        <tr><td class="k">Needs replacement</td><td class="v" id="bh_repl">–</td></tr>
+      </tbody></table>
+    </div>
+    <div class="controls">
+      <button class="btn primary" id="plug">⚡ Simulate power failure</button>
+      <button class="btn" id="restore">🔌 Restore mains</button>
+    </div>
+  </section>
+
+  <section data-tab="measures" class="hidden"><div class="card"><h2>All objects</h2><table id="tbl"></table></div></section>
+
+  <section data-tab="energy" class="hidden"><div class="grid">
+    <div class="card"><h2>Energy consumed</h2><div class="big"><span id="kwh">–</span><span class="unit"> kWh</span></div></div>
+    <div class="card"><h2>Estimated cost</h2><div class="big"><span id="cost">–</span><span class="unit" id="cur"></span></div></div>
+    <div class="card"><h2>Active power</h2><div class="big"><span id="apwr">–</span><span class="unit"> W</span></div></div>
+    <div class="card"><h2>Reset period</h2><div class="big" id="eperiod" style="font-size:20px">–</div></div>
+  </div></section>
+
+  <section data-tab="controls" class="hidden">
+    <div class="card"><h2>Audible alarm (beeper)</h2>
+      <div class="row2">
+        <div><label>Beeper</label>
+          <select id="alarm"><option value="alarm_enable">Enabled</option><option value="alarm_mute">Muted</option><option value="alarm_disable">Disabled</option></select>
+        </div>
+        <div><label>&nbsp;</label><span id="alarmmsg" class="sub" style="margin:0"></span></div>
+      </div>
+      <p class="sub" id="alarmnote" style="margin:8px 0 0"></p>
+    </div>
+    <div class="card" id="testcard" style="margin-top:14px"><h2>Battery self-test</h2>
+      <div class="controls" id="testbtns"></div>
+    </div>
+    <div class="card" id="morecard" style="margin-top:14px"><h2>Other controls</h2>
+      <div id="morectl"></div>
+    </div>
+    <p class="sub" id="noctl" style="margin-top:12px"></p>
+  </section>
+
+  <section data-tab="events" class="hidden"><div class="card"><h2>Event log</h2><table id="evt"><thead><tr><th>Time</th><th>Event</th></tr></thead><tbody></tbody></table></div></section>
+
+  <section data-tab="settings" class="hidden"><div class="card"><h2>Shutdown & energy settings</h2>
+    <div class="row2">
+      <div><label>Shutdown when runtime ≤ (s)</label><input id="f_rtte" type="number"></div>
+      <div><label>UPS grace duration (s)</label><input id="f_dur" type="number"></div>
+      <div><label>Shutdown action</label><select id="f_type"><option>none</option><option>hibernate</option><option>shutdown</option><option>script</option></select></div>
+      <div><label>Execute on host (danger)</label><select id="f_exec"><option value="false">no (policy only)</option><option value="true">yes</option></select></div>
+      <div><label>Energy cost / kWh</label><input id="f_cost" type="number" step="0.01"></div>
+      <div><label>Currency</label><input id="f_cur" type="text"></div>
+    </div>
+    <div class="controls"><button class="btn primary" id="save">Save settings</button><span id="savemsg" class="sub" style="margin:0"></span></div>
+  </div></section>
+
+  <p class="foot" id="foot"></p>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+const fmtDur=s=>{s=Math.max(0,s|0);const m=(s/60)|0,r=s%60;return m?`${m}m ${r}s`:`${r}s`;};
+let token=new URLSearchParams(location.search).get('token')||'';
+const hdr=token?{'X-Auth-Token':token}:{};
+
+document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('on',x===b));
+  document.querySelectorAll('section[data-tab]').forEach(s=>s.classList.toggle('hidden',s.dataset.tab!==b.dataset.t));
+  if(b.dataset.t==='events')loadEvents(); if(b.dataset.t==='settings')loadSettings();
+  if(b.dataset.t==='controls')loadControls();
+});
+
+async function postControl(name, value){
+  const body = value===undefined ? {name} : {name, value};
+  const r = await fetch('/api/control',{method:'POST',headers:{'Content-Type':'application/json',...hdr},body:JSON.stringify(body)});
+  return r.ok;
+}
+async function loadControls(){
+  const c = await (await fetch('/api/controls',{headers:hdr})).json();
+  const names = new Set((c.controls||[]).map(x=>x.name));
+  // Alarm dropdown — reflect current device value (from shared summary), write on change.
+  const sm = await (await fetch('/api/summary',{headers:hdr})).json();
+  const cur = sm.beeper ? sm.beeper.value : null;
+  const alarmSel = $('alarm');
+  const hasAlarm = names.has('alarm_enable')||names.has('alarm_disable')||names.has('alarm_mute');
+  alarmSel.closest('.card').style.display = hasAlarm?'':'none';
+  if(cur!=null) alarmSel.value = cur==1?'alarm_disable':cur==3?'alarm_mute':'alarm_enable';
+  $('alarmnote').textContent = cur!=null?('Device reports AudibleAlarmControl = '+cur+' (1=disabled, 2=enabled, 3=muted)'):'';
+  alarmSel.onchange = async ()=>{ const ok=await postControl(alarmSel.value); $('alarmmsg').textContent = ok?'saved ✓':'failed'; setTimeout(()=>$('alarmmsg').textContent='',2000); };
+  // Battery test buttons
+  const tmap=[['test_quick','Quick test'],['test_deep','Deep test'],['test_abort','Abort']];
+  const tb=$('testbtns'); tb.innerHTML='';
+  const tests=tmap.filter(([n])=>names.has(n));
+  $('testcard').style.display=tests.length?'':'none';
+  tests.forEach(([n,lbl])=>{const btn=document.createElement('button');btn.className='btn';btn.textContent=lbl;btn.onclick=async()=>{const ok=await postControl(n);btn.textContent=ok?lbl+' ✓':lbl+' ✗';setTimeout(()=>btn.textContent=lbl,1500);};tb.appendChild(btn);});
+  // Other controls (delays, outlets) generically
+  const handled=new Set(['alarm_enable','alarm_disable','alarm_mute','test_quick','test_deep','test_abort']);
+  const others=(c.controls||[]).filter(x=>!handled.has(x.name));
+  const mc=$('morectl'); mc.innerHTML='';
+  $('morecard').style.display=others.length?'':'none';
+  others.forEach(x=>{
+    const row=document.createElement('div'); row.style.cssText='display:flex;gap:8px;align-items:center;margin:6px 0';
+    if(x.needsValue){
+      row.innerHTML=`<span class="sub" style="flex:1;margin:0">${x.label}</span><input type="number" style="width:120px" id="v_${x.name}"><button class="btn">Set</button>`;
+      row.querySelector('button').onclick=async()=>{const v=+row.querySelector('input').value;const ok=await postControl(x.name,v);row.querySelector('button').textContent=ok?'Set ✓':'Set ✗';setTimeout(()=>row.querySelector('button').textContent='Set',1500);};
+    } else {
+      row.innerHTML=`<span class="sub" style="flex:1;margin:0">${x.label}</span><button class="btn">Run</button>`;
+      row.querySelector('button').onclick=async()=>{const ok=await postControl(x.name);row.querySelector('button').textContent=ok?'Run ✓':'Run ✗';setTimeout(()=>row.querySelector('button').textContent='Run',1500);};
+    }
+    mc.appendChild(row);
+  });
+  $('noctl').textContent = (c.controls||[]).length?'':'This device exposes no settable controls.';
+}
+
+async function tick(){
+  // Same summary the Python API/CLI get — built once server-side (/api/summary).
+  let s; try{s=await (await fetch('/api/summary',{headers:hdr})).json();}catch(e){return;}
+  const d=s.data||{}, bat=s.battery, pw=s.power;
+  $('product').textContent = s.model || 'UPS Companion';
+
+  // Battery health + replace banner
+  $('replace').style.display = bat.needsReplacement ? '' : 'none';
+  $('bh_cap').textContent = bat.charge ?? '–';
+  $('bh_fcc').textContent = bat.fullChargeCapacity ?? '–';
+  $('bh_dc').textContent  = bat.designCapacity ?? '–';
+  $('bh_rt').textContent  = bat.runtimeSeconds!=null ? fmtDur(bat.runtimeSeconds) : '–';
+  $('bh_v').textContent   = bat.voltage ?? '–';
+  $('bh_repl').textContent = bat.needsReplacement===true ? 'YES — replace' : (bat.needsReplacement===false ? 'no' : '–');
+
+  const cap=bat.charge;
+  $('cap').textContent=cap!=null?cap:'–';
+  const bar=$('capbar');bar.querySelector('i').style.width=(cap||0)+'%';bar.className='bar'+(cap<=10?' crit':cap<=20?' low':'');
+  $('rtte').textContent=bat.runtimeSeconds!=null?fmtDur(bat.runtimeSeconds):'–';
+  $('load').textContent=pw.loadPercent??'–';
+  $('volt').textContent=pw.inputVoltage??'–';
+  if(s.temperature!=null){$('tempcard').style.display='';$('temp').textContent=s.temperature;}else{$('tempcard').style.display='none';}
+  $('kwh').textContent=s.energy.kWh??'–';
+  $('cost').textContent=s.energy.cost??'–';$('cur').textContent=' '+(s.energy.currency||'');
+  $('apwr').textContent=pw.activePower??'–';
+  $('eperiod').textContent=d['System.Energy.resetPeriod']||'–';
+
+  const sev=s.severityName||'normal';$('banner').className='banner s-'+sev;
+  $('state').textContent=s.state;
+  $('statedesc').textContent=s.stateDetail?('· '+s.stateDetail):'';
+
+  const rows=Object.keys(d).sort().map(k=>`<tr><td>${k}</td><td class="v">${d[k]}</td></tr>`);
+  $('tbl').innerHTML=rows.join('');
+  $('foot').textContent='severity: '+sev+'  ·  updated '+new Date(s.lastDate||0).toLocaleTimeString();
+}
+async function loadEvents(){
+  const d=await (await fetch('/api/events?limit=100',{headers:hdr})).json();
+  $('evt').querySelector('tbody').innerHTML=(d.events||[]).map(e=>
+    `<tr><td>${new Date(e.ts).toLocaleTimeString()}</td><td><span class="lvl lvl${e.level}"></span>${e.message}</td></tr>`).join('')
+    ||'<tr><td colspan=2 class="sub">No events yet — try a power failure.</td></tr>';
+}
+async function loadSettings(){
+  const c=await (await fetch('/api/settings',{headers:hdr})).json();
+  $('f_rtte').value=c.shutdownSettings.runTimeToEmptyLimit;
+  $('f_dur').value=c.shutdownSettings.shutdownDuration;
+  $('f_type').value=c.shutdownSettings.shutdownType;
+  $('f_exec').value=String(c.shutdownSettings.execute);
+  $('f_cost').value=c.energy.cost;$('f_cur').value=c.energy.currency;
+  if(c.nut_enabled)$('nutpill').classList.remove('hidden');
+}
+$('save').onclick=async()=>{
+  const body={shutdownSettings:{runTimeToEmptyLimit:+$('f_rtte').value,shutdownDuration:+$('f_dur').value,
+    shutdownType:$('f_type').value,execute:$('f_exec').value==='true'},
+    energy:{cost:+$('f_cost').value,currency:$('f_cur').value}};
+  const r=await fetch('/api/settings',{method:'PUT',headers:{'Content-Type':'application/json',...hdr},body:JSON.stringify(body)});
+  $('savemsg').textContent=r.ok?'saved ✓':'error';setTimeout(()=>$('savemsg').textContent='',2000);
+};
+async function mains(on){await fetch('/api/mains',{method:'POST',headers:{'Content-Type':'application/json',...hdr},body:JSON.stringify({on})});tick();}
+$('plug').onclick=()=>mains(false);$('restore').onclick=()=>mains(true);
+tick();setInterval(tick,2000);
+</script>
+</body>
+</html>

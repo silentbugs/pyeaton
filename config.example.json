@@ -1,0 +1,17 @@
+{
+  "http_host": "0.0.0.0",
+  "http_port": 4679,
+  "nut_enabled": false,
+  "nut_port": 3493,
+  "nut_name": "ups",
+  "api_token": "",
+  "acquisition": { "pollingRate": 2000 },
+  "shutdownSettings": {
+    "runTimeToEmptyLimit": 300,
+    "shutdownDuration": 120,
+    "shutdownType": "none",
+    "shutdownScript": "",
+    "execute": false
+  },
+  "energy": { "resetPeriod": "weekly", "cost": 0.30, "currency": "EUR", "powerFactor": 0.8 }
+}
